@@ -185,6 +185,7 @@
 
             const flip = true;
             webcam = new tmImage.Webcam(400, 400, flip);
+            // カメラをセットアップし、canvasに描画
             await webcam.setup({ canvas: canvasElement });
             await webcam.play();
             window.requestAnimationFrame(loop);
