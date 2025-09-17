@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手洗いチェッカー</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #2d3748;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .header {
+            margin-bottom: 1.5rem;
+        }
+        .content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+        .video-container {
+            width: 100%;
+            max-width: 480px;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        video {
+            width: 100%;
+            height: auto;
+            transform: scaleX(-1); /* カメラ映像を左右反転 */
+        }
+        .checklist {
+            width: 100%;
+            max-width: 480px;
+            text-align: left;
+            margin-top: 1rem;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background-color: #e2e8f0;
+            border-radius: 0.75rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .list-item.checked {
+            background-color: #a0aec0;
+        }
+        .list-item .icon {
+            color: #4a5568;
+            transition: color 0.3s ease;
+        }
+        .list-item.checked .icon {
+            color: #2f855a;
+        }
+        .button {
+            padding: 0.75rem 1.5rem;
+            background-color: #4299e1;
+            color: white;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .button:hover {
+            background-color: #3182ce;
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #2d3748;
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー</h1>
+        <p class="text-lg text-gray-600">画面の指示に従って手を動かしてください</p>
+    </div>
+
+    <div class="content">
+        <div class="video-container">
+            <video id="webcam" autoplay muted playsinline></video>
+        </div>
+        <button id="start-button" class="button">開始</button>
+        <div class="checklist" id="checklist">
+            <!-- チェックリスト項目はJavaScriptで生成 -->
+        </div>
+        <div id="label-container" class="mt-4 text-center"></div>
+        <div id="message-box" class="message-box"></div>
+    </div>
+</div>
+
+<script type="module">
+    // Teachable MachineでエクスポートしたモデルのURLをここに貼り付けてください
+    const URL = "<https://teachablemachine.withgoogle.com/models/ssIpqECgj/>";
+
+    let model, webcam, maxPredictions;
+    let currentStep = 0;
+    const steps = [
+        { name: '1. 手のひら', completed: false, classIndex: 0 },
+        { name: '2. 手の甲', completed: false, classIndex: 1 },
+        { name: '3. 指の間', completed: false, classIndex: 2 },
+        { name: '4. 親指', completed: false, classIndex: 3 },
+        { name: '5. 指先', completed: false, classIndex: 4 },
+        { name: '6. 手首', completed: false, classIndex: 5 }
+    ];
+
+    const webcamElement = document.getElementById("webcam");
+    const checklistElement = document.getElementById("checklist");
+    const startButton = document.getElementById("start-button");
+    const messageBox = document.getElementById("message-box");
+
+    // チェックリストをHTMLに描画
+    function renderChecklist() {
+        checklistElement.innerHTML = '';
+        steps.forEach((step, index) => {
+            const item = document.createElement('div');
+            item.className = `list-item text-xl font-semibold transition-all duration-300 ${step.completed ? 'checked' : ''}`;
+            item.innerHTML = `
+                <i id="icon-${index}" class="icon fas ${step.completed ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-500'}"></i>
+                <span>${step.name}</span>
+            `;
+            checklistElement.appendChild(item);
+        });
+    }
+
+    // メッセージボックスを表示
+    function showMessage(text, duration = 3000) {
+        messageBox.textContent = text;
+        messageBox.style.display = 'block';
+        setTimeout(() => {
+            messageBox.style.display = 'none';
+        }, duration);
+    }
+
+    // 認証情報とモデルを初期化
+    async function init() {
+        try {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            const flip = true;
+            webcam = new tmImage.Webcam(400, 400, flip);
+            await webcam.setup();
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            webcamElement.style.display = 'block';
+            startButton.style.display = 'none';
+            showMessage("手洗いを始めましょう！");
+            renderChecklist();
+        } catch (error) {
+            console.error("Initialization failed:", error);
+            showMessage("初期化に失敗しました。カメラのアクセス許可を確認してください。");
+        }
+    }
+
+    // 予測ループ
+    async function loop() {
+        webcam.update();
+        await predict();
+        window.requestAnimationFrame(loop);
+    }
+
+    // ポーズを予測し、チェックリストを更新
+    async function predict() {
+        const prediction = await model.predict(webcam.canvas);
+        if (currentStep < steps.length) {
+            const currentClassIndex = steps[currentStep].classIndex;
+            const currentClassName = steps[currentStep].name;
+            const predictionForCurrentStep = prediction[currentClassIndex];
+
+            if (predictionForCurrentStep.probability.toFixed(2) > 0.9) {
+                // 十分な確信度で現在のステップを認識した場合
+                steps[currentStep].completed = true;
+                const listItem = document.getElementById(`icon-${currentStep}`);
+                if (listItem) {
+                    listItem.classList.remove('fa-circle', 'text-gray-500');
+                    listItem.classList.add('fa-check-circle', 'text-green-500');
+                }
+                showMessage(`${currentClassName}ができました！`);
+
+                currentStep++;
+                if (currentStep < steps.length) {
+                    // 次のステップをハイライト
+                    const nextListItem = document.querySelectorAll('.list-item')[currentStep];
+                    if (nextListItem) {
+                        nextListItem.classList.add('checked');
+                    }
+                }
+            }
+        } else {
+            // すべてのステップが完了した場合
+            showMessage("手洗い完了です！", 5000);
+            webcam.stop();
+            startButton.textContent = 'もう一度';
+            startButton.style.display = 'block';
+            resetState();
+        }
+    }
+
+    // 状態をリセット
+    function resetState() {
+        currentStep = 0;
+        steps.forEach(step => step.completed = false);
+        renderChecklist();
+    }
+
+    startButton.addEventListener('click', () => {
+        init();
+        resetState();
+    });
+
+    renderChecklist(); // 初回表示
+</script>
+</body>
+</html>
