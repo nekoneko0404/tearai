@@ -109,13 +109,13 @@
 
 <div class="container">
     <div class="header">
-        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー</h1>
+        <h1 class="text-3xl font-bold mb-2">☆手洗いチェッカー☆</h1>
         <p class="text-lg text-gray-600">画面の指示に従って手を動かしてください</p>
     </div>
 
     <div class="content">
         <div class="video-container" id="video-container">
-            <!-- カメラ映像はここに動的に挿入されます -->
+            <video id="webcam-video" autoplay muted playsinline></video>
         </div>
         <button id="start-button" class="button">開始</button>
         <div class="checklist" id="checklist">
@@ -140,7 +140,7 @@
         { name: '6. 手首', completed: false, classIndex: 5 }
     ];
 
-    const videoContainer = document.getElementById("video-container");
+    const videoElement = document.getElementById("webcam-video");
     const checklistElement = document.getElementById("checklist");
     const startButton = document.getElementById("start-button");
     const messageBox = document.getElementById("message-box");
@@ -177,23 +177,21 @@
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
+            // Teachable MachineのWebcamインスタンスを作成
             const flip = true;
             webcam = new tmImage.Webcam(400, 400, flip);
-            await webcam.setup();
+            await webcam.setup({ video: videoElement });
             await webcam.play();
-            // Teachable Machineが生成したvideo要素をコンテナに追加
-            videoContainer.innerHTML = '';
-            webcam.webcamElement.style.transform = 'scaleX(-1)';
-            videoContainer.appendChild(webcam.webcamElement);
             
+            // Teachable Machineのライブラリが作成したvideo要素は必要ないため、直接使用する
             window.requestAnimationFrame(loop);
-
             startButton.style.display = 'none';
             showMessage("手洗いを始めましょう！");
             renderChecklist();
+
         } catch (error) {
             console.error("Initialization failed:", error);
-            showMessage("初期化に失敗しました。カメラのアクセス許可を確認してください。またはブラウザのバージョンを更新してください。");
+            showMessage("カメラの初期化に失敗しました。お使いのブラウザのカメラ設定をご確認ください。");
         }
     }
 
