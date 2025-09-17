@@ -114,7 +114,7 @@
 
 <div class="container">
     <div class="header">
-        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー！</h1>
+        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー</h1>
         <p class="text-lg text-gray-600">画面の指示に従って手を動かしてください</p>
     </div>
 
@@ -184,17 +184,22 @@
 
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
-
-            // Teachable MachineのWebcamインスタンスを作成
-            const flip = true;
-            webcam = new tmImage.Webcam(400, 400, flip);
-            await webcam.setup({ video: videoElement });
-            await webcam.play();
             
-            window.requestAnimationFrame(loop);
-            startButton.style.display = 'none';
-            showMessage("手洗いを始めましょう！");
-            renderChecklist();
+            // カメラ映像ストリームを手動で取得
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoElement.srcObject = stream;
+            
+            // 映像が読み込まれたらWebcamインスタンスを作成
+            videoElement.addEventListener('loadeddata', () => {
+                const flip = true;
+                webcam = new tmImage.Webcam(videoElement.videoWidth, videoElement.videoHeight, flip);
+                webcam.webcamElement = videoElement; // 手動で作成したvideo要素を割り当て
+                
+                window.requestAnimationFrame(loop);
+                startButton.style.display = 'none';
+                showMessage("手洗いを始めましょう！");
+                renderChecklist();
+            });
 
         } catch (error) {
             console.error("Initialization failed:", error);
