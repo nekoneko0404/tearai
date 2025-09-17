@@ -50,7 +50,12 @@
         video {
             width: 100%;
             height: auto;
-            transform: scaleX(-1);
+            transform: scaleX(-1); /* カメラ映像を左右反転 */
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            transform: scaleX(-1); /* カメラ映像を左右反転 */
         }
         .checklist {
             width: 100%;
@@ -109,13 +114,13 @@
 
 <div class="container">
     <div class="header">
-        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー☆</h1>
+        <h1 class="text-3xl font-bold mb-2">☆手洗いチェッカー☆</h1>
         <p class="text-lg text-gray-600">画面の指示に従って手を動かしてください</p>
     </div>
 
     <div class="content">
-        <div class="video-container" id="video-container">
-            <video id="webcam" autoplay muted playsinline></video>
+        <div class="video-container">
+            <canvas id="canvas"></canvas>
         </div>
         <button id="start-button" class="button">開始</button>
         <div class="checklist" id="checklist">
@@ -127,6 +132,7 @@
 </div>
 
 <script type="module">
+    // Teachable MachineでエクスポートしたモデルのURLをここに貼り付けてください
     const URL = "https://teachablemachine.withgoogle.com/models/ssIpqECgj/";
 
     let model, webcam, maxPredictions;
@@ -140,10 +146,11 @@
         { name: '6. 手首', completed: false, classIndex: 5 }
     ];
 
-    const videoElement = document.getElementById("webcam");
+    const canvasElement = document.getElementById("canvas");
     const checklistElement = document.getElementById("checklist");
     const startButton = document.getElementById("start-button");
     const messageBox = document.getElementById("message-box");
+    const labelContainer = document.getElementById("label-container");
 
     // チェックリストをHTMLに描画
     function renderChecklist() {
@@ -177,25 +184,20 @@
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
-            // カメラ映像ストリームを手動で取得
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            videoElement.srcObject = stream;
-            videoElement.addEventListener('loadeddata', () => {
-                videoElement.play();
-                // Teachable MachineのWebcamインスタンスを作成
-                const flip = true;
-                webcam = new tmImage.Webcam(videoElement.videoWidth, videoElement.videoHeight, flip);
-                webcam.webcamElement = videoElement; // 手動で作成したvideo要素を割り当て
+            const flip = true;
+            webcam = new tmImage.Webcam(400, 400, flip);
+            // カメラをセットアップし、canvasに描画
+            await webcam.setup({ canvas: canvasElement });
+            await webcam.play();
+            window.requestAnimationFrame(loop);
 
-                window.requestAnimationFrame(loop);
-                startButton.style.display = 'none';
-                showMessage("手洗いを始めましょう！");
-                renderChecklist();
-            });
-
+            startButton.style.display = 'none';
+            showMessage("手洗いを始めましょう！");
+            renderChecklist();
         } catch (error) {
             console.error("Initialization failed:", error);
-            showMessage("カメラの初期化に失敗しました。カメラのアクセス許可を確認してください。");
+            // エラーメッセージをより具体的に修正
+            showMessage("カメラへのアクセスが拒否されました。ブラウザの設定でカメラを許可してください。");
         }
     }
 
@@ -209,6 +211,16 @@
     // ポーズを予測し、チェックリストを更新
     async function predict() {
         const prediction = await model.predict(webcam.canvas);
+        
+        // 認識結果を画面に表示（デバッグ用）
+        labelContainer.innerHTML = '';
+        for (let i = 0; i < maxPredictions; i++) {
+            const classPrediction = `${prediction[i].className}: ${prediction[i].probability.toFixed(2)}`;
+            const labelDiv = document.createElement("div");
+            labelDiv.textContent = classPrediction;
+            labelContainer.appendChild(labelDiv);
+        }
+
         if (currentStep < steps.length) {
             const currentClassIndex = steps[currentStep].classIndex;
             const currentClassName = steps[currentStep].name;
