@@ -43,8 +43,16 @@
             border-radius: 1rem;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         video {
+            width: 100%;
+            height: auto;
+            transform: scaleX(-1); /* カメラ映像を左右反転 */
+        }
+        canvas {
             width: 100%;
             height: auto;
             transform: scaleX(-1); /* カメラ映像を左右反転 */
@@ -113,6 +121,7 @@
     <div class="content">
         <div class="video-container">
             <video id="webcam" autoplay muted playsinline></video>
+            <canvas id="canvas" class="hidden"></canvas>
         </div>
         <button id="start-button" class="button">開始</button>
         <div class="checklist" id="checklist">
@@ -139,6 +148,7 @@
     ];
 
     const webcamElement = document.getElementById("webcam");
+    const canvasElement = document.getElementById("canvas");
     const checklistElement = document.getElementById("checklist");
     const startButton = document.getElementById("start-button");
     const messageBox = document.getElementById("message-box");
@@ -177,11 +187,12 @@
 
             const flip = true;
             webcam = new tmImage.Webcam(400, 400, flip);
-            await webcam.setup();
+            await webcam.setup({ video: webcamElement, canvas: canvasElement });
             await webcam.play();
             window.requestAnimationFrame(loop);
 
-            webcamElement.style.display = 'block';
+            webcamElement.style.display = 'none';
+            canvasElement.classList.remove('hidden');
             startButton.style.display = 'none';
             showMessage("手洗いを始めましょう！");
             renderChecklist();
