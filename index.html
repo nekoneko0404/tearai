@@ -125,7 +125,7 @@
 
 <script type="module">
     // Teachable MachineでエクスポートしたモデルのURLをここに貼り付けてください
-    const URL = "<https://teachablemachine.withgoogle.com/models/ssIpqECgj/>";
+    const URL = "https://teachablemachine.withgoogle.com/models/ssIpqECgj/";
 
     let model, webcam, maxPredictions;
     let currentStep = 0;
@@ -187,7 +187,8 @@
             renderChecklist();
         } catch (error) {
             console.error("Initialization failed:", error);
-            showMessage("初期化に失敗しました。カメラのアクセス許可を確認してください。");
+            // エラーメッセージをより具体的に修正
+            showMessage("カメラへのアクセスが拒否されました。ブラウザの設定でカメラを許可してください。");
         }
     }
 
