@@ -120,8 +120,7 @@
 
     <div class="content">
         <div class="video-container">
-            <video id="webcam" autoplay muted playsinline></video>
-            <canvas id="canvas" class="hidden"></canvas>
+            <canvas id="canvas"></canvas>
         </div>
         <button id="start-button" class="button">開始</button>
         <div class="checklist" id="checklist">
@@ -147,7 +146,6 @@
         { name: '6. 手首', completed: false, classIndex: 5 }
     ];
 
-    const webcamElement = document.getElementById("webcam");
     const canvasElement = document.getElementById("canvas");
     const checklistElement = document.getElementById("checklist");
     const startButton = document.getElementById("start-button");
@@ -187,12 +185,10 @@
 
             const flip = true;
             webcam = new tmImage.Webcam(400, 400, flip);
-            await webcam.setup({ video: webcamElement, canvas: canvasElement });
+            await webcam.setup({ canvas: canvasElement });
             await webcam.play();
             window.requestAnimationFrame(loop);
 
-            webcamElement.style.display = 'none';
-            canvasElement.classList.remove('hidden');
             startButton.style.display = 'none';
             showMessage("手洗いを始めましょう！");
             renderChecklist();
