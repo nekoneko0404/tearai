@@ -43,16 +43,12 @@
             border-radius: 1rem;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            /* カメラ映像を中央に配置するためのFlexbox設定 */
             display: flex;
             justify-content: center;
             align-items: center;
         }
         video {
-            width: 100%;
-            height: auto;
-            transform: scaleX(-1); /* カメラ映像を左右反転 */
-        }
-        canvas {
             width: 100%;
             height: auto;
             transform: scaleX(-1); /* カメラ映像を左右反転 */
@@ -114,13 +110,13 @@
 
 <div class="container">
     <div class="header">
-        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー６</h1>
+        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー７</h1>
         <p class="text-lg text-gray-600">画面の指示に従って手を動かしてください</p>
     </div>
 
     <div class="content">
-        <div class="video-container">
-            <canvas id="canvas"></canvas>
+        <div class="video-container" id="video-container">
+            <!-- カメラ映像はここに動的に挿入されます -->
         </div>
         <button id="start-button" class="button">開始</button>
         <div class="checklist" id="checklist">
@@ -132,7 +128,6 @@
 </div>
 
 <script type="module">
-    // Teachable MachineでエクスポートしたモデルのURLをここに貼り付けてください
     const URL = "https://teachablemachine.withgoogle.com/models/ssIpqECgj/";
 
     let model, webcam, maxPredictions;
@@ -146,7 +141,7 @@
         { name: '6. 手首', completed: false, classIndex: 5 }
     ];
 
-    const canvasElement = document.getElementById("canvas");
+    const videoContainer = document.getElementById("video-container");
     const checklistElement = document.getElementById("checklist");
     const startButton = document.getElementById("start-button");
     const messageBox = document.getElementById("message-box");
@@ -185,9 +180,17 @@
 
             const flip = true;
             webcam = new tmImage.Webcam(400, 400, flip);
-            // カメラをセットアップし、canvasに描画
-            await webcam.setup({ canvas: canvasElement });
+            await webcam.setup();
             await webcam.play();
+
+            // Teachable Machineのライブラリが生成したvideo要素をコンテナに追加
+            videoContainer.innerHTML = ''; // 以前の要素をクリア
+            const videoElement = webcam.webcamElement;
+            videoElement.style.transform = 'scaleX(-1)'; // 左右反転を適用
+            videoElement.classList.add('rounded-2xl'); // Tailwindで角丸を適用
+            videoContainer.appendChild(videoElement);
+            videoContainer.style.display = 'block';
+
             window.requestAnimationFrame(loop);
 
             startButton.style.display = 'none';
@@ -195,8 +198,7 @@
             renderChecklist();
         } catch (error) {
             console.error("Initialization failed:", error);
-            // エラーメッセージをより具体的に修正
-            showMessage("カメラへのアクセスが拒否されました。ブラウザの設定でカメラを許可してください。");
+            showMessage("初期化に失敗しました。カメラのアクセス許可を確認してください。");
         }
     }
 
