@@ -43,7 +43,6 @@
             border-radius: 1rem;
             overflow: hidden;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            /* カメラ映像を中央に配置するためのFlexbox設定 */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -51,7 +50,7 @@
         video {
             width: 100%;
             height: auto;
-            transform: scaleX(-1); /* カメラ映像を左右反転 */
+            transform: scaleX(-1);
         }
         .checklist {
             width: 100%;
@@ -110,13 +109,13 @@
 
 <div class="container">
     <div class="header">
-        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー７</h1>
+        <h1 class="text-3xl font-bold mb-2">手洗いチェッカー☆</h1>
         <p class="text-lg text-gray-600">画面の指示に従って手を動かしてください</p>
     </div>
 
     <div class="content">
         <div class="video-container" id="video-container">
-            <!-- カメラ映像はここに動的に挿入されます -->
+            <video id="webcam" autoplay muted playsinline></video>
         </div>
         <button id="start-button" class="button">開始</button>
         <div class="checklist" id="checklist">
@@ -141,7 +140,7 @@
         { name: '6. 手首', completed: false, classIndex: 5 }
     ];
 
-    const videoContainer = document.getElementById("video-container");
+    const videoElement = document.getElementById("webcam");
     const checklistElement = document.getElementById("checklist");
     const startButton = document.getElementById("start-button");
     const messageBox = document.getElementById("message-box");
@@ -178,27 +177,25 @@
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
-            const flip = true;
-            webcam = new tmImage.Webcam(400, 400, flip);
-            await webcam.setup();
-            await webcam.play();
+            // カメラ映像ストリームを手動で取得
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoElement.srcObject = stream;
+            videoElement.addEventListener('loadeddata', () => {
+                videoElement.play();
+                // Teachable MachineのWebcamインスタンスを作成
+                const flip = true;
+                webcam = new tmImage.Webcam(videoElement.videoWidth, videoElement.videoHeight, flip);
+                webcam.webcamElement = videoElement; // 手動で作成したvideo要素を割り当て
 
-            // Teachable Machineのライブラリが生成したvideo要素をコンテナに追加
-            videoContainer.innerHTML = ''; // 以前の要素をクリア
-            const videoElement = webcam.webcamElement;
-            videoElement.style.transform = 'scaleX(-1)'; // 左右反転を適用
-            videoElement.classList.add('rounded-2xl'); // Tailwindで角丸を適用
-            videoContainer.appendChild(videoElement);
-            videoContainer.style.display = 'block';
+                window.requestAnimationFrame(loop);
+                startButton.style.display = 'none';
+                showMessage("手洗いを始めましょう！");
+                renderChecklist();
+            });
 
-            window.requestAnimationFrame(loop);
-
-            startButton.style.display = 'none';
-            showMessage("手洗いを始めましょう！");
-            renderChecklist();
         } catch (error) {
             console.error("Initialization failed:", error);
-            showMessage("初期化に失敗しました。カメラのアクセス許可を確認してください。");
+            showMessage("カメラの初期化に失敗しました。カメラのアクセス許可を確認してください。");
         }
     }
 
